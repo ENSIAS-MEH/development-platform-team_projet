@@ -1,0 +1,10 @@
+target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.log
+
+# Local Spring overrides (copy from application-local.properties.example)
+src/main/resources/application-local.properties
