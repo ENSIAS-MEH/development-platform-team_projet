@@ -1,0 +1,17 @@
+# Copy to application-local.properties (gitignored) for machine-specific overrides.
+# Loaded automatically via spring.config.import in application.properties.
+#
+# Arch Linux interim (until you run: sudo ./scripts/setup-mariadb.sh):
+# spring.datasource.url=jdbc:mysql://localhost/test?unixSocket=/run/mysqld/mysqld.sock&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+# spring.datasource.username=ibra
+# spring.datasource.password=
+#
+# After setup-mariadb.sh, remove this file or comment out the lines above.
+
+# Custom host or credentials:
+# spring.datasource.url=jdbc:mysql://localhost:3306/projectmatch_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+# spring.datasource.username=projectmatch
+# spring.datasource.password=your-secret-here
+
+# Different port when 8080 is busy:
+# server.port=8081
