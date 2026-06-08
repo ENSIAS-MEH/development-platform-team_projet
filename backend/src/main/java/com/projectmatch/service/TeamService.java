@@ -1,10 +1,13 @@
 package com.projectmatch.service;
 
+import com.projectmatch.dto.DtoMapper;
+import com.projectmatch.dto.TeamResponseDTO;
 import com.projectmatch.model.Team;
 import com.projectmatch.model.User;
 import com.projectmatch.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -12,14 +15,19 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final UserService userService;
+    private final DtoMapper dtoMapper;
 
-    public Team findByProjectId(Long projectId) {
-        return teamRepository.findByProjectId(projectId)
+    @Transactional(readOnly = true)
+    public TeamResponseDTO findByProjectId(Long projectId) {
+        Team team = teamRepository.findWithMembersByProjectId(projectId)
                 .orElseThrow(() -> new RuntimeException("Team not found for project: " + projectId));
+        return dtoMapper.toTeamResponse(team);
     }
 
-    public Team joinTeam(Long projectId, String userEmail) {
-        Team team = findByProjectId(projectId);
+    @Transactional
+    public TeamResponseDTO joinTeam(Long projectId, String userEmail) {
+        Team team = teamRepository.findWithMembersByProjectId(projectId)
+                .orElseThrow(() -> new RuntimeException("Team not found for project: " + projectId));
         User user = userService.findByEmail(userEmail);
 
         boolean alreadyMember = team.getMembers().stream()
@@ -30,18 +38,15 @@ public class TeamService {
         }
 
         team.getMembers().add(user);
-        return teamRepository.save(team);
+        return dtoMapper.toTeamResponse(teamRepository.save(team));
     }
 
-    public Team leaveTeam(Long projectId, String userEmail) {
-        Team team = findByProjectId(projectId);
+    @Transactional
+    public TeamResponseDTO leaveTeam(Long projectId, String userEmail) {
+        Team team = teamRepository.findWithMembersByProjectId(projectId)
+                .orElseThrow(() -> new RuntimeException("Team not found for project: " + projectId));
         User user = userService.findByEmail(userEmail);
         team.getMembers().removeIf(m -> m.getId().equals(user.getId()));
-        return teamRepository.save(team);
-    }
-
-    public Team getTeamById(Long id) {
-        return teamRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Team not found"));
+        return dtoMapper.toTeamResponse(teamRepository.save(team));
     }
 }

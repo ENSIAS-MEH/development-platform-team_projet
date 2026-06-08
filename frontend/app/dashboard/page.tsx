@@ -10,7 +10,8 @@ import { ProjectCard } from '@/components/ProjectCard'
 import { FormationCard } from '@/components/FormationCard'
 import { EmptyState } from '@/components/EmptyState'
 import {
-  getProjects,
+  getMyProjects,
+  getMyFormations,
   getFormations,
   getAllUsers,
   deleteUser,
@@ -35,13 +36,13 @@ export default function DashboardPage() {
       try {
         if (user?.role === 'STUDENT') {
           const [projectsData, formationsData] = await Promise.all([
-            getProjects().catch(() => []),
+            getMyProjects().catch(() => []),
             getFormations({ free: true }).catch(() => []),
           ])
           setProjects(projectsData || [])
           setFormations(formationsData || [])
         } else if (user?.role === 'MENTOR') {
-          const formationsData = await getFormations().catch(() => [])
+          const formationsData = await getMyFormations().catch(() => [])
           setFormations(formationsData || [])
         } else if (user?.role === 'ADMIN') {
           const usersData = await getAllUsers().catch(() => [])
@@ -103,9 +104,7 @@ export default function DashboardPage() {
 
               {projects.length > 0 ? (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {projects
-                    .filter((p) => p.ownerId === user.id)
-                    .map((project) => (
+                  {projects.map((project) => (
                       <ProjectCard
                         key={project.id}
                         title={project.title}
@@ -176,9 +175,7 @@ export default function DashboardPage() {
 
             {formations.length > 0 ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {formations
-                  .filter((f) => f.mentorId === user.id)
-                  .map((formation) => (
+                {formations.map((formation) => (
                     <FormationCard
                       key={formation.id}
                       title={formation.title}

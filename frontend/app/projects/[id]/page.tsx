@@ -220,6 +220,11 @@ export default function ProjectDetailPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <Link href={`/projects/${projectId}/edit`}>
+                      <Button variant="outline" className="w-full">
+                        Edit Project
+                      </Button>
+                    </Link>
                   </div>
                 </Card>
               )}
