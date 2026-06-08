@@ -36,8 +36,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/projects/open", "/api/projects/{id}").permitAll()
-                .requestMatchers("/api/formations", "/api/formations/free", "/api/formations/{id}").permitAll()
+                .requestMatchers("/api/projects/open").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/projects/{id:[0-9]+}").permitAll()
+                .requestMatchers("/api/formations", "/api/formations/free").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/formations/{id:[0-9]+}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/formations/{id:[0-9]+}/pdf").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/formations").hasRole("MENTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/formations/{id}").hasAnyRole("MENTOR", "ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -33,6 +33,8 @@ public class Formation {
 
     private String level; // BEGINNER, INTERMEDIATE, ADVANCED
 
+    private String pdfFileName;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mentor_id", nullable = false)
     @ToString.Exclude

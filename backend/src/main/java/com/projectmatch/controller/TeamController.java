@@ -1,6 +1,6 @@
 package com.projectmatch.controller;
 
-import com.projectmatch.model.Team;
+import com.projectmatch.dto.TeamResponseDTO;
 import com.projectmatch.service.TeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,19 +16,19 @@ public class TeamController {
     private final TeamService teamService;
 
     @GetMapping("/project/{projectId}")
-    public ResponseEntity<Team> getTeamByProject(@PathVariable Long projectId) {
+    public ResponseEntity<TeamResponseDTO> getTeamByProject(@PathVariable Long projectId) {
         return ResponseEntity.ok(teamService.findByProjectId(projectId));
     }
 
     @PostMapping("/project/{projectId}/join")
-    public ResponseEntity<Team> join(@PathVariable Long projectId,
-                                     @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<TeamResponseDTO> join(@PathVariable Long projectId,
+                                                @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(teamService.joinTeam(projectId, userDetails.getUsername()));
     }
 
     @PostMapping("/project/{projectId}/leave")
-    public ResponseEntity<Team> leave(@PathVariable Long projectId,
-                                      @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<TeamResponseDTO> leave(@PathVariable Long projectId,
+                                                 @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(teamService.leaveTeam(projectId, userDetails.getUsername()));
     }
 }

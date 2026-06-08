@@ -16,9 +16,13 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value
 
   // Check if this is a protected route
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route),
-  )
+  const isEditRoute =
+    /^\/projects\/[^/]+\/edit/.test(pathname) ||
+    /^\/formations\/[^/]+\/edit/.test(pathname)
+
+  const isProtectedRoute =
+    protectedRoutes.some((route) => pathname.startsWith(route)) ||
+    isEditRoute
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
 
   // Redirect to login if accessing protected route without token

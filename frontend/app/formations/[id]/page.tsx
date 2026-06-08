@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { StatusBadge } from '@/components/StatusBadge'
-import { getFormationById, deleteFormation } from '@/lib/api'
+import { getFormationById, deleteFormation, getFormationPdfUrl } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 
 export default function FormationDetailPage() {
@@ -20,7 +20,12 @@ export default function FormationDetailPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
 
-  const isOwner = user && formation && user.id === formation.mentorId
+  const isOwner =
+    user &&
+    formation &&
+    user.id === (formation.mentor?.id ?? formation.mentorId)
+
+  const pdfUrl = formation ? getFormationPdfUrl(formation) : null
 
   useEffect(() => {
     async function loadFormation() {
@@ -98,20 +103,24 @@ export default function FormationDetailPage() {
                 </p>
               </Card>
 
-              {/* Modules */}
-              {formation.modules && formation.modules.length > 0 && (
+              {pdfUrl && (
                 <Card className="p-6">
-                  <h2 className="text-lg font-semibold">Course Content</h2>
-                  <div className="mt-4 space-y-3">
-                    {formation.modules.map((module: string, idx: number) => (
-                      <div key={idx} className="flex items-start gap-3">
-                        <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-accent/20 text-xs font-semibold text-accent-foreground">
-                          {idx + 1}
-                        </div>
-                        <span>{module}</span>
-                      </div>
-                    ))}
+                  <h2 className="text-lg font-semibold">Course Material</h2>
+                  <div className="mt-4 overflow-hidden rounded-lg border border-border">
+                    <iframe
+                      src={pdfUrl}
+                      title={`${formation.title} PDF`}
+                      className="h-[600px] w-full"
+                    />
                   </div>
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-block text-sm text-primary hover:underline"
+                  >
+                    Download / open in new tab
+                  </a>
                 </Card>
               )}
             </div>

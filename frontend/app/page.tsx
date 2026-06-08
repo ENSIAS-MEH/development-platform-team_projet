@@ -55,13 +55,13 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link href="/projects">
-              <Button size="lg" variant="secondary">
+              <Button size="lg" variant="secondary" className="border-white text-black hover:bg-white/10">
                 Explore Projects
               </Button>
             </Link>
             {!isAuthenticated && (
               <Link href="/register">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+                <Button size="lg" variant="outline" className="border-white text-black hover:bg-white/10">
                   Get Started
                 </Button>
               </Link>

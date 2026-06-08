@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -14,27 +14,70 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { createFormation } from '@/lib/api'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { getFormationById, updateFormation } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 
-export default function CreateFormationPage() {
+export default function EditFormationPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const params = useParams()
+  const { user, isLoading: authLoading } = useAuth()
+  const formationId = params.id as string
+
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('0')
   const [duration, setDuration] = useState('')
   const [level, setLevel] = useState('BEGINNER')
   const [pdf, setPdf] = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [hasExistingPdf, setHasExistingPdf] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (authLoading) return
+
+    if (!user || user.role !== 'MENTOR') {
+      setLoading(false)
+      return
+    }
+
+    async function loadFormation() {
+      try {
+        const formation = await getFormationById(formationId)
+        if (user!.id !== (formation.mentor?.id ?? formation.mentorId)) {
+          setError('You can only edit your own formations')
+          return
+        }
+        setTitle(formation.title)
+        setDescription(formation.description)
+        setPrice(String(formation.price))
+        setDuration(formation.duration)
+        setLevel(formation.level)
+        setHasExistingPdf(!!formation.pdfUrl)
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Failed to load formation',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadFormation()
+  }, [formationId, user, authLoading])
+
+  if (authLoading || loading) {
+    return <LoadingSpinner />
+  }
 
   if (!user || user.role !== 'MENTOR') {
     return (
       <div className="px-4 py-12 text-center sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold">Unauthorized</h1>
         <p className="mt-2 text-muted-foreground">
-          Only mentors can create formations
+          Only mentors can edit formations
         </p>
         <Link href="/formations" className="mt-4 inline-block">
           <Button variant="outline">Back to formations</Button>
@@ -46,16 +89,11 @@ export default function CreateFormationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setLoading(true)
+    setSaving(true)
 
     try {
-      if (!pdf) {
-        setError('Please attach a PDF file for this formation')
-        setLoading(false)
-        return
-      }
-
-      const formation = await createFormation(
+      await updateFormation(
+        formationId,
         {
           title,
           description,
@@ -65,31 +103,31 @@ export default function CreateFormationPage() {
         },
         pdf,
       )
-
-      router.push(`/formations/${formation.id}`)
+      router.push(`/formations/${formationId}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create formation')
+      setError(err instanceof Error ? err.message : 'Failed to update formation')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <section className="border-b border-border bg-muted/20 px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <Link href="/formations" className="text-sm text-muted-foreground hover:text-foreground">
-            ← Back to formations
+          <Link
+            href={`/formations/${formationId}`}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            ← Back to formation
           </Link>
-          <h1 className="mt-4 text-3xl font-bold">Create a New Formation</h1>
+          <h1 className="mt-4 text-3xl font-bold">Edit Formation</h1>
           <p className="mt-2 text-muted-foreground">
-            Share your expertise and teach others
+            Update course details or replace the PDF
           </p>
         </div>
       </section>
 
-      {/* Form */}
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl">
           <Card className="p-8">
@@ -106,7 +144,6 @@ export default function CreateFormationPage() {
                 </label>
                 <Input
                   id="title"
-                  placeholder="Give your course a clear title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
@@ -119,7 +156,6 @@ export default function CreateFormationPage() {
                 </label>
                 <Textarea
                   id="description"
-                  placeholder="Describe what students will learn"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={6}
@@ -136,7 +172,6 @@ export default function CreateFormationPage() {
                     id="price"
                     type="number"
                     min="0"
-                    placeholder="0"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     required
@@ -149,7 +184,6 @@ export default function CreateFormationPage() {
                   </label>
                   <Input
                     id="duration"
-                    placeholder="e.g., 4 weeks, 8 hours"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     required
@@ -182,18 +216,19 @@ export default function CreateFormationPage() {
                   type="file"
                   accept="application/pdf,.pdf"
                   onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
-                  required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Upload the course material as a PDF file.
+                  {hasExistingPdf
+                    ? 'Leave empty to keep the current PDF, or upload a new one to replace it.'
+                    : 'Upload a PDF file for this formation.'}
                 </p>
               </div>
 
               <div className="flex gap-3 pt-6">
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Creating...' : 'Create Formation'}
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
-                <Link href="/formations">
+                <Link href={`/formations/${formationId}`}>
                   <Button type="button" variant="outline">
                     Cancel
                   </Button>

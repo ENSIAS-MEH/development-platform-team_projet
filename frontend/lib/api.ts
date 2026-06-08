@@ -33,6 +33,7 @@ export interface Formation {
   level: string
   mentorId: string
   mentor?: User
+  pdfUrl?: string
   createdAt?: string
 }
 
@@ -104,7 +105,11 @@ function mapProject(raw: Record<string, unknown>, teamMembers?: User[]): Project
     description: String(raw.description ?? ''),
     status: raw.status as Project['status'],
     requiredSkills: parseSkills(raw.requiredSkills as string),
-    ownerId: owner ? String(owner.id) : String(raw.ownerId ?? ''),
+    ownerId: owner
+      ? String(owner.id)
+      : raw.ownerId != null
+        ? String(raw.ownerId)
+        : '',
     owner: owner ? mapUser(owner) : undefined,
     teamMembers,
     createdAt: String(raw.createdAt ?? new Date().toISOString()),
@@ -121,8 +126,13 @@ function mapFormation(raw: Record<string, unknown>): Formation {
     price: Number(raw.price ?? 0),
     duration: String(raw.duration ?? ''),
     level: String(raw.level ?? ''),
-    mentorId: mentor ? String(mentor.id) : String(raw.mentorId ?? ''),
+    mentorId: mentor
+      ? String(mentor.id)
+      : raw.mentorId != null
+        ? String(raw.mentorId)
+        : '',
     mentor: mentor ? mapUser(mentor) : undefined,
+    pdfUrl: raw.pdfUrl ? String(raw.pdfUrl) : undefined,
     createdAt: raw.createdAt ? String(raw.createdAt) : undefined,
   }
 }
@@ -164,7 +174,11 @@ export async function apiFetch(
   const url = `${API_BASE_URL}${path}`
 
   const headers = new Headers(fetchOptions.headers || {})
-  if (!headers.has('Content-Type') && fetchOptions.body) {
+  if (
+    !headers.has('Content-Type') &&
+    fetchOptions.body &&
+    !(fetchOptions.body instanceof FormData)
+  ) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -243,6 +257,11 @@ export async function registerUser(
 
 export async function getOpenProjects(): Promise<Project[]> {
   const list = await apiFetch('/api/projects/open', { skipAuth: true })
+  return (list as Record<string, unknown>[]).map((p) => mapProject(p))
+}
+
+export async function getMyProjects(): Promise<Project[]> {
+  const list = await apiFetch('/api/projects/mine')
   return (list as Record<string, unknown>[]).map((p) => mapProject(p))
 }
 
@@ -344,15 +363,28 @@ export async function updateProjectStatus(
   return mapProject(raw as Record<string, unknown>)
 }
 
-/** @deprecated Use updateProjectStatus */
 export async function updateProject(
   id: string,
-  data: Partial<Project>,
+  data: {
+    title: string
+    description: string
+    requiredSkills?: string[] | string
+  },
 ): Promise<Project> {
-  if (data.status) {
-    return updateProjectStatus(id, data.status)
-  }
-  return getProjectById(id)
+  const skills =
+    typeof data.requiredSkills === 'string'
+      ? data.requiredSkills
+      : (data.requiredSkills ?? []).join(', ')
+
+  const raw = await apiFetch(`/api/projects/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      title: data.title,
+      description: data.description,
+      requiredSkills: skills,
+    }),
+  })
+  return mapProject(raw as Record<string, unknown>)
 }
 
 export async function deleteProject(id: string): Promise<void> {
@@ -381,6 +413,11 @@ export async function leaveTeam(projectId: string): Promise<void> {
 
 // --- Formations ---
 
+export async function getMyFormations(): Promise<Formation[]> {
+  const list = await apiFetch('/api/formations/mine')
+  return (list as Record<string, unknown>[]).map(mapFormation)
+}
+
 export async function getFormations(filters?: {
   free?: boolean
   keyword?: string
@@ -404,16 +441,59 @@ export async function getFormationById(id: string): Promise<Formation> {
   return mapFormation(raw as Record<string, unknown>)
 }
 
-export async function createFormation(data: {
-  title: string
-  description: string
-  price: number
-  duration: string
-  level: string
-}): Promise<Formation> {
+export async function createFormation(
+  data: {
+    title: string
+    description: string
+    price: number
+    duration: string
+    level: string
+  },
+  pdf: File,
+): Promise<Formation> {
+  const form = new FormData()
+  form.append(
+    'formation',
+    new Blob([JSON.stringify(data)], { type: 'application/json' }),
+  )
+  form.append('pdf', pdf)
+
   const raw = await apiFetch('/api/formations', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: form,
+  })
+  return mapFormation(raw as Record<string, unknown>)
+}
+
+/** Same-origin URL so PDFs can be embedded in the page (avoids cross-origin iframe blocking). */
+export function getFormationPdfUrl(formation: Formation): string | null {
+  if (!formation.pdfUrl && !formation.id) return null
+  return `/api/formations/${formation.id}/pdf`
+}
+
+export async function updateFormation(
+  id: string,
+  data: {
+    title: string
+    description: string
+    price: number
+    duration: string
+    level: string
+  },
+  pdf?: File | null,
+): Promise<Formation> {
+  const form = new FormData()
+  form.append(
+    'formation',
+    new Blob([JSON.stringify(data)], { type: 'application/json' }),
+  )
+  if (pdf) {
+    form.append('pdf', pdf)
+  }
+
+  const raw = await apiFetch(`/api/formations/${id}`, {
+    method: 'PUT',
+    body: form,
   })
   return mapFormation(raw as Record<string, unknown>)
 }

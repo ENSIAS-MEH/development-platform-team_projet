@@ -1,0 +1,176 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { getProjectById, updateProject } from '@/lib/api'
+import { useAuth } from '@/lib/auth-context'
+
+export default function EditProjectPage() {
+  const router = useRouter()
+  const params = useParams()
+  const { user, isLoading: authLoading } = useAuth()
+  const projectId = params.id as string
+
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [skills, setSkills] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (authLoading) return
+
+    if (!user || user.role !== 'STUDENT') {
+      setLoading(false)
+      return
+    }
+
+    async function loadProject() {
+      try {
+        const project = await getProjectById(projectId)
+        if (user!.id !== (project.owner?.id ?? project.ownerId)) {
+          setError('You can only edit your own projects')
+          return
+        }
+        setTitle(project.title)
+        setDescription(project.description)
+        setSkills(project.requiredSkills.join(', '))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load project')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProject()
+  }, [projectId, user, authLoading])
+
+  if (authLoading || loading) {
+    return <LoadingSpinner />
+  }
+
+  if (!user || user.role !== 'STUDENT') {
+    return (
+      <div className="px-4 py-12 text-center sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-bold">Unauthorized</h1>
+        <p className="mt-2 text-muted-foreground">
+          Only students can edit projects
+        </p>
+        <Link href="/projects" className="mt-4 inline-block">
+          <Button variant="outline">Back to projects</Button>
+        </Link>
+      </div>
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSaving(true)
+
+    try {
+      const requiredSkills = skills
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+
+      await updateProject(projectId, {
+        title,
+        description,
+        requiredSkills,
+      })
+      router.push(`/projects/${projectId}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update project')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="border-b border-border bg-muted/20 px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          <Link
+            href={`/projects/${projectId}`}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            ← Back to project
+          </Link>
+          <h1 className="mt-4 text-3xl font-bold">Edit Project</h1>
+          <p className="mt-2 text-muted-foreground">
+            Update your project details
+          </p>
+        </div>
+      </section>
+
+      <section className="px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl">
+          <Card className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label htmlFor="title" className="text-sm font-medium">
+                  Project Title
+                </label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-sm font-medium">
+                  Description
+                </label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={6}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="skills" className="text-sm font-medium">
+                  Required Skills (comma-separated)
+                </label>
+                <Input
+                  id="skills"
+                  value={skills}
+                  onChange={(e) => setSkills(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-6">
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Link href={`/projects/${projectId}`}>
+                  <Button type="button" variant="outline">
+                    Cancel
+                  </Button>
+                </Link>
+              </div>
+            </form>
+          </Card>
+        </div>
+      </section>
+    </div>
+  )
+}
